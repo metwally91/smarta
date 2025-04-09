@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الحضور الذكي | Smart Attendance System</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d0f1a">
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <!-- QR Code Scanning Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <!-- Excel Export Library (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Particles.js for Animated Background -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+    <style>
+        /* Custom Styles & Tailwind Config */
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+        :root {
+            --primary-glow: #00f2ea; /* Neon Cyan */
+            --secondary-glow: #ff00ff; /* Neon Magenta */
+            --accent-glow: #70ff00; /* Neon Green */
+            --bg-dark: #0d0f1a;
+            --bg-darker: #06070d;
+            --text-light: #e0e0e0;
+            --text-darker: #a0a0a0;
+            --border-glow: rgba(0, 242, 234, 0.3);
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* Prevent scrollbars from main layout */
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #app-container {
+            flex-grow: 1;
+            overflow-y: auto; /* Allow content scrolling */
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- Futuristic Dark Theme --- */
+        .bg-matrix-dark { background-color: var(--bg-dark); }
+        .bg-matrix-darker { background-color: var(--bg-darker); }
+        .text-glow-primary { color: var(--primary-glow); text-shadow: 0 0 8px var(--primary-glow); }
+        .text-glow-secondary { color: var(--secondary-glow); text-shadow: 0 0 8px var(--secondary-glow); }
+        .border-glow { border: 1px solid var(--border-glow); box-shadow: 0 0 5px var(--border-glow); }
+        .border-glow-accent { border: 1px solid rgba(112, 255, 0, 0.4); box-shadow: 0 0 5px rgba(112, 255, 0, 0.4); }
+
+        /* --- Animated Background --- */
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            background-color: var(--bg-darker);
+            background-image: linear-gradient(45deg, rgba(13, 15, 26, 0.95) 0%, rgba(6, 7, 13, 0.98) 100%);
+        }
+
+        /* --- Floating Elements --- */
+        .card-float {
+            background-color: rgba(13, 15, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 242, 234, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 242, 234, 0.1), inset 0 0 5px rgba(0, 242, 234, 0.05);
+            border-radius: 12px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-float:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(0, 242, 234, 0.2), inset 0 0 8px rgba(0, 242, 234, 0.1);
+        }
+
+        /* --- Alive Buttons --- */
+        .btn-futuristic {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-glow);
+            color: var(--primary-glow);
+            background: linear-gradient(45deg, rgba(0, 242, 234, 0.1), rgba(0, 242, 234, 0.05));
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-shadow: 0 0 3px var(--primary-glow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            z-index: 1;
+            animation: breathe 3s infinite ease-in-out;
+        }
+
+        .btn-futuristic:hover {
+            background: linear-gradient(45deg, rgba(0, 242, 234, 0.2), rgba(0, 242, 234, 0.1));
+            box-shadow: 0 0 15px var(--primary-glow);
+            transform: translateY(-2px) scale(1.02);
+            animation-play-state: paused; /* Pause breathing on hover */
+        }
+
+        .btn-futuristic:active::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            animation: ripple 0.6s linear;
+        }
+        .btn-futuristic:active {
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        .btn-secondary {
+            border-color: rgba(255, 0, 255, 0.3);
+            color: var(--secondary-glow);
+            background: linear-gradient(45deg, rgba(255, 0, 255, 0.1), rgba(255, 0, 255, 0.05));
+            text-shadow: 0 0 3px var(--secondary-glow);
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, rgba(255, 0, 255, 0.2), rgba(255, 0, 255, 0.1));
+            box-shadow: 0 0 15px var(--secondary-glow);
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--text-darker);
+            padding: 5px;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .btn-icon:hover {
+            color: var(--primary-glow);
+            transform: scale(1.1);
+        }
+        .btn-icon-delete:hover {
+            color: #ff4d4d; /* Red for delete */
+        }
+
+        /* --- Ripple Animation --- */
+        @keyframes ripple {
+            to {
+                transform: translate(-50%, -50%) scale(50);
+                opacity: 0;
+            }
+        }
+
+        /* --- Breathing Animation --- */
+        @keyframes breathe {
+            0%, 100% { box-shadow: 0 0 5px var(--border-glow); }
+            50% { box-shadow: 0 0 10px var(--primary-glow); }
+        }
+        .btn-secondary { animation-name: breathe-secondary; }
+         @keyframes breathe-secondary {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 255, 0.3); }
+            50% { box-shadow: 0 0 10px var(--secondary-glow); }
+        }
+
+        /* --- Forms --- */
+        .input-futuristic, .select-futuristic {
+            background-color: rgba(13, 15, 26, 0.7);
+            border: 1px solid var(--border-glow);
+            border-radius: 6px;
+            color: var(--text-light);
+            padding: 8px 12px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .input-futuristic:focus, .select-futuristic:focus {
+            outline: none;
+            border-color: var(--primary-glow);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+        select.select-futuristic { /* Style arrow */
+           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2300f2ea' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+           background-position: left 0.5rem center;
+           background-repeat: no-repeat;
+           background-size: 1.5em 1.5em;
+           padding-left: 2.5rem; /* Adjust padding for RTL arrow */
+           appearance: none; /* Remove default arrow */
+           -webkit-appearance: none;
+           -moz-appearance: none;
+        }
+
+        /* --- Tabs --- */
+        .tab {
+            cursor: pointer;
+            padding: 10px 15px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+            color: var(--text-darker);
+            position: relative;
+        }
+        .tab::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary-glow);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+            box-shadow: 0 0 5px var(--primary-glow);
+        }
+        .tab:hover {
+            color: var(--text-light);
+        }
+        .tab.active {
+            color: var(--primary-glow);
+            font-weight: bold;
+        }
+        .tab.active::after {
+            transform: scaleX(1);
+        }
+
+        /* --- Table --- */
+        .table-futuristic {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-futuristic th, .table-futuristic td {
+            padding: 12px 15px;
+            text-align: right;
+            border-bottom: 1px solid var(--border-glow);
+        }
+        .table-futuristic th {
+            color: var(--primary-glow);
+            font-weight: bold;
+            background-color: rgba(0, 242, 234, 0.05);
+        }
+        .table-futuristic tbody tr:hover {
+            background-color: rgba(13, 15, 26, 0.5);
+        }
+        .table-futuristic tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* --- Modal --- */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(6, 7, 13, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: var(--bg-dark);
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid var(--border-glow);
+            box-shadow: 0 10px 40px rgba(0, 242, 234, 0.2);
+            max-width: 90%;
+            width: 500px; /* Adjust as needed */
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-backdrop.active .modal-content {
+            transform: scale(1);
+        }
+
+        /* --- Scrollbar --- */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--primary-glow);
+            border-radius: 10px;
+            border: 2px solid var(--bg-darker);
+            box-shadow: 0 0 5px var(--primary-glow);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #00ffee; /* Brighter cyan on hover */
+        }
+
+        /* --- QR Code Container --- */
+        #qrCodeContainer img, #qrCodeContainer canvas {
+            margin: 10px auto;
+            display: block;
+            background: white; /* QR codes need white background */
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #qrScannerContainer {
+            width: 100%;
+            max-width: 400px;
+            margin: 10px auto;
+            border: 2px dashed var(--primary-glow);
+            border-radius: 8px;
+            overflow: hidden; /* Clip the video feed */
+        }
+
+        /* --- Transitions for Section Switching --- */
+        .section {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+        .section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Animated Background -->
+    <div id="particles-js"></div>
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="p-4 md:p-8">
+
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-glow-primary">
+                <i class="fas fa-fingerprint mr-2"></i>نظام الحضور الذكي
+            </h1>
+            <p class="text-sm text-text-darker mt-1">إدارة الوقت بدقة سينمائية</p>
+        </header>
+
+        <!-- Tabs Navigation -->
+        <nav class="flex justify-center mb-8 border-b border-border-glow space-x-4 space-x-reverse">
+            <div id="tab-main" class="tab active" onclick="switchTab('main')"><i class="fas fa-calendar-day mr-1"></i> اليومية</div>
+            <div id="tab-history" class="tab" onclick="switchTab('history')"><i class="fas fa-history mr-1"></i> السجل</div>
+            <div id="tab-settings" class="tab" onclick="switchTab('settings')"><i class="fas fa-cogs mr-1"></i> الإعدادات</div>
+            <div id="tab-share" class="tab" onclick="switchTab('share')"><i class="fas fa-share-alt mr-1"></i> مشاركة وتصدير</div>
+        </nav>
+
+        <!-- Content Sections -->
+        <main>
+            <!-- 1. Main Panel | اليومية -->
+            <section id="section-main" class="section active">
+                <div class="card-float p-6 max-w-lg mx-auto text-center">
+                    <h2 class="text-2xl font-bold text-glow-primary mb-4">اليوم: <span id="currentDate"></span></h2>
+                    <div class="mb-4">
+                        <p class="text-lg">الحالة الحالية: <span id="dayStatusText" class="font-bold">--</span></p>
+                        <p class="text-md text-text-darker">ساعات العمل: <span id="workedHours" class="font-mono text-glow-accent">00:00:00</span></p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-center gap-4 mb-6">
+                        <button id="checkInBtn" class="btn-futuristic flex-1" onclick="handleCheckIn()">
+                            <i class="fas fa-sign-in-alt mr-2"></i>تسجيل الدخول
+                        </button>
+                        <button id="checkOutBtn" class="btn-futuristic btn-secondary flex-1" onclick="handleCheckOut()" disabled>
+                            <i class="fas fa-sign-out-alt mr-2"></i>تسجيل الخروج
+                        </button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="statusDropdown" class="block text-sm font-medium text-text-darker mb-1">تغيير حالة اليوم:</label>
+                        <select id="statusDropdown" class="select-futuristic w-full" onchange="handleStatusChange(this.value)">
+                            <option value="يوم عمل">يوم عمل</option>
+                            <option value="إجازة">إجازة</option>
+                            <option value="إذن">إذن</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-futuristic w-full mt-4" onclick="openManualEntryModal()">
+                        <i class="fas fa-edit mr-2"></i>إدخال/تعديل يدوي ليوم آخر
+                    </button>
+                </div>
+            </section>
+
+            <!-- 2. History | السجل -->
+            <section id="section-history" class="section">
+                 <div class="card-float p-4 md:p-6">
+                    <h2 class="text-2xl font-bold text-glow-primary mb-4">سجل الحضور</h2>
+                    <div class="flex flex-col md:flex-row gap-4 mb-4">
+                        <input type="text" id="historySearch" class="input-futuristic flex-grow" placeholder="ابحث بالتاريخ (YYYY-MM-DD) أو الحالة..." oninput="renderHistory()">
+                        <input type="month" id="historyMonthFilter" class="input-futuristic" onchange="renderHistory()">
+                        <button class="btn-futuristic btn-secondary" onclick="clearHistoryFilters()">
+                            <i class="fas fa-times mr-1"></i> مسح الفلتر
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="table-futuristic">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>اليوم</th>
+                                    <th>وقت الدخول</th>
+                                    <th>وقت الخروج</th>
+                                    <th>ساعات العمل</th>
+                                    <th>الحالة</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- History rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="noHistoryMessage" class="text-center text-text-darker mt-4" style="display: none;">لا يوجد سجلات لعرضها.</p>
+                </div>
+            </section>
+
+            <!-- 3. Settings | الإعدادات -->
+            <section id="section-settings" class="section">
+                <div class="card-float p-6 max-w-lg mx-auto">
+                    <h2 class="text-2xl font-bold text-glow-primary mb-6">الإعدادات</h2>
+                    <form id="settingsForm" onsubmit="handleSettingsSave(event)">
+                        <div class="mb-4">
+                            <label for="defaultCheckIn" class="block text-sm font-medium text-text-darker mb-1">وقت الدخول الافتراضي:</label>
+                            <input type="time" id="defaultCheckIn" class="input-futuristic w-full">
+                        </div>
+                        <div class="mb-4">
+                            <label for="defaultCheckOut" class="block text-sm font-medium text-text-darker mb-1">وقت الخروج الافتراضي:</label>
+                            <input type="time" id="defaultCheckOut" class="input-futuristic w-full">
+                        </div>
+                        <div class="mb-6">
+                            <label for="cycleStartDay" class="block text-sm font-medium text-text-darker mb-1">يوم بداية الدورة الشهرية (لحسابات مستقبلية):</label>
+                            <input type="number" id="cycleStartDay" min="1" max="31" class="input-futuristic w-full" placeholder="مثال: 26">
+                        </div>
+
+                        <h3 class="text-lg font-semibold text-glow-secondary mb-3">خيارات الواجهة</h3>
+                        <div class="space-y-3">
+                             <label class="flex items-center space-x-3 space-x-reverse cursor-pointer">
+                                <input type="checkbox" id="settingSound" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-border-glow text-primary-glow focus:ring-primary-glow">
+                                <span class="text-text-light">تفعيل مؤثرات صوتية (غير مطبق حالياً)</span>
+                            </label>
+                             <label class="flex items-center space-x-3 space-x-reverse cursor-pointer">
+                                <input type="checkbox" id="settingMotion" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-border-glow text-primary-glow focus:ring-primary-glow" checked>
+                                <span class="text-text-light">تفعيل تأثيرات الحركة</span>
+                            </label>
+                            <!-- Add more UI options here if needed -->
+                        </div>
+
+                        <button type="submit" class="btn-futuristic w-full mt-8">
+                            <i class="fas fa-save mr-2"></i>حفظ الإعدادات
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- 4. Export & Share | مشاركة وتصدير -->
+            <section id="section-share" class="section">
+                 <div class="card-float p-6 max-w-lg mx-auto text-center">
+                    <h2 class="text-2xl font-bold text-glow-primary mb-6">مشاركة وتصدير البيانات</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                         <button class="btn-futuristic" onclick="exportExcel()">
+                             <i class="fas fa-file-excel mr-2"></i>تصدير إلى Excel
+                         </button>
+                          <button class="btn-futuristic btn-secondary" onclick="generateAndShowQR()">
+                             <i class="fas fa-qrcode mr-2"></i>إنشاء QR للمزامنة
+                         </button>
+                    </div>
+
+                    <hr class="border-border-glow my-6">
+
+                    <h3 class="text-xl font-semibold text-glow-secondary mb-4">استيراد بيانات من جهاز آخر</h3>
+                     <button class="btn-futuristic w-full" onclick="startQRScan()">
+                         <i class="fas fa-camera mr-2"></i>مسح QR للاستيراد والمزامنة
+                     </button>
+                     <p class="text-xs text-text-darker mt-2">سيتم دمج البيانات الجديدة مع السجل الحالي بذكاء.</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center text-xs text-text-darker mt-8 pb-4">
+            مصمم ومطور بواسطة metwalli hammad | © <span id="currentYear"></span>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Manual Entry Modal -->
+    <div id="manualEntryModal" class="modal-backdrop" onclick="closeModalOnClickOutside(event, 'manualEntryModal')">
+        <div class="modal-content card-float">
+            <h3 class="text-xl font-bold text-glow-primary mb-4">إدخال/تعديل يدوي</h3>
+            <form id="manualEntryForm" onsubmit="handleManualEntrySubmit(event)">
+                <input type="hidden" id="manualEntryEditDate">
+                <div class="mb-3">
+                    <label for="manualDate" class="block text-sm font-medium text-text-darker mb-1">التاريخ:</label>
+                    <input type="date" id="manualDate" class="input-futuristic w-full" required>
+                </div>
+                 <div class="grid grid-cols-2 gap-4 mb-3">
+                     <div>
+                         <label for="manualCheckIn" class="block text-sm font-medium text-text-darker mb-1">وقت الدخول:</label>
+                         <input type="time" id="manualCheckIn" class="input-futuristic w-full">
+                     </div>
+                     <div>
+                         <label for="manualCheckOut" class="block text-sm font-medium text-text-darker mb-1">وقت الخروج:</label>
+                         <input type="time" id="manualCheckOut" class="input-futuristic w-full">
+                     </div>
+                 </div>
+                 <div class="mb-4">
+                     <label for="manualStatus" class="block text-sm font-medium text-text-darker mb-1">الحالة:</label>
+                     <select id="manualStatus" class="select-futuristic w-full">
+                         <option value="يوم عمل">يوم عمل</option>
+                         <option value="إجازة">إجازة</option>
+                         <option value="إذن">إذن</option>
+                     </select>
+                 </div>
+                 <div class="flex justify-end gap-3">
+                     <button type="button" class="btn-futuristic btn-secondary" onclick="closeModal('manualEntryModal')">إلغاء</button>
+                     <button type="submit" class="btn-futuristic">حفظ التغييرات</button>
+                 </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR Code Display Modal -->
+    <div id="qrDisplayModal" class="modal-backdrop" onclick="closeModalOnClickOutside(event, 'qrDisplayModal')">
+        <div class="modal-content card-float text-center">
+            <h3 class="text-xl font-bold text-glow-primary mb-4">رمز QR للمزامنة</h3>
+            <p class="text-text-darker mb-3">امسح هذا الرمز من جهاز آخر لاستيراد بيانات الحضور.</p>
+            <div id="qrCodeContainer"></div>
+            <button type="button" class="btn-futuristic mt-4" onclick="closeModal('qrDisplayModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div id="qrScannerModal" class="modal-backdrop" onclick="stopQRScanAndClose()">
+         <div class="modal-content card-float text-center">
+             <h3 class="text-xl font-bold text-glow-primary mb-4">مسح رمز QR</h3>
+             <p class="text-text-darker mb-3">وجّه الكاميرا نحو رمز QR للمزامنة.</p>
+             <div id="qrScannerContainer">
+                <div id="qr-reader"></div>
+             </div>
+             <div id="scanResult" class="mt-3 text-glow-accent font-bold"></div>
+             <button type="button" class="btn-futuristic btn-secondary mt-4" onclick="stopQRScanAndClose()">إلغاء المسح</button>
+         </div>
+    </div>
+
+    <!-- Notification Area (Optional: Simple toast-like messages) -->
+    <div id="notificationArea" class="fixed bottom-5 left-5 z-50 space-y-2">
+        <!-- Notifications will be added here -->
+    </div>
+
+
+<script>
+    // --- Constants ---
+    const LS_DATA_KEY = 'smartAttendanceData_v1';
+    const LS_SETTINGS_KEY = 'smartAttendanceSettings_v1';
+    const STATUS_WORK = 'يوم عمل';
+    const STATUS_LEAVE = 'إجازة';
+    const STATUS_PERMISSION = 'إذن';
+
+    // --- State ---
+    let attendanceData = [];
+    let settings = {
+        defaultCheckIn: '09:00',
+        defaultCheckOut: '17:00',
+        cycleStartDay: 26,
+        soundEnabled: false,
+        motionEnabled: true,
+    };
+    let currentTimerInterval = null;
+    let activeTab = 'main';
+    let html5QrCode = null; // Instance for QR scanner
+
+    // --- DOM Elements ---
+    const currentDateEl = document.getElementById('currentDate');
+    const dayStatusTextEl = document.getElementById('dayStatusText');
+    const workedHoursEl = document.getElementById('workedHours');
+    const checkInBtn = document.getElementById('checkInBtn');
+    const checkOutBtn = document.getElementById('checkOutBtn');
+    const statusDropdown = document.getElementById('statusDropdown');
+    const historyTableBody = document.getElementById('historyTableBody');
+    const noHistoryMessage = document.getElementById('noHistoryMessage');
+    const historySearchInput = document.getElementById('historySearch');
+    const historyMonthFilterInput = document.getElementById('historyMonthFilter');
+    const settingsForm = document.getElementById('settingsForm');
+    const defaultCheckInInput = document.getElementById('defaultCheckIn');
+    const defaultCheckOutInput = document.getElementById('defaultCheckOut');
+    const cycleStartDayInput = document.getElementById('cycleStartDay');
+    const settingSoundCheckbox = document.getElementById('settingSound');
+    const settingMotionCheckbox = document.getElementById('settingMotion');
+    const manualEntryModal = document.getElementById('manualEntryModal');
+    const manualEntryForm = document.getElementById('manualEntryForm');
+    const manualEntryEditDateInput = document.getElementById('manualEntryEditDate');
+    const manualDateInput = document.getElementById('manualDate');
+    const manualCheckInInput = document.getElementById('manualCheckIn');
+    const manualCheckOutInput = document.getElementById('manualCheckOut');
+    const manualStatusInput = document.getElementById('manualStatus');
+    const qrDisplayModal = document.getElementById('qrDisplayModal');
+    const qrCodeContainer = document.getElementById('qrCodeContainer');
+    const qrScannerModal = document.getElementById('qrScannerModal');
+    const qrReaderElement = document.getElementById('qr-reader');
+    const scanResultEl = document.getElementById('scanResult');
+    const notificationArea = document.getElementById('notificationArea');
+    const currentYearEl = document.getElementById('currentYear');
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        currentYearEl.textContent = new Date().getFullYear();
+        loadSettings();
+        loadData();
+        initParticles();
+        updateCurrentDate();
+        renderMainPanel();
+        renderHistory(); // Initial render
+        applySettingsToUI();
+
+        // Optional PWA registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+                .catch(err => console.error('Service Worker registration failed:', err));
+        }
+    });
+
+    // --- Data Persistence ---
+    function loadData() {
+        const storedData = localStorage.getItem(LS_DATA_KEY);
+        attendanceData = storedData ? JSON.parse(storedData) : [];
+        // Sort data by date descending (most recent first)
+        attendanceData.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    function saveData() {
+         // Sort data by date descending before saving
+        attendanceData.sort((a, b) => new Date(b.date) - new Date(a.date));
+        localStorage.setItem(LS_DATA_KEY, JSON.stringify(attendanceData));
+    }
+
+    function loadSettings() {
+        const storedSettings = localStorage.getItem(LS_SETTINGS_KEY);
+        if (storedSettings) {
+            settings = { ...settings, ...JSON.parse(storedSettings) };
+        }
+    }
+
+    function saveSettings() {
+        localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    // --- Core Logic ---
+    function getTodayDateString() {
+        const today = new Date();
+        return today.toISOString().split('T')[0]; // YYYY-MM-DD
+    }
+
+    function formatTime(date) {
+        if (!date) return '--:--';
+        return new Date(date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // HH:mm format
+    }
+
+    function formatTimeToHHMM(timeString) {
+        if (!timeString || !timeString.includes(':')) return '--:--';
+         // Handles both HH:mm and HH:mm:ss
+        const parts = timeString.split(':');
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+
+    function getDayOfWeekArabic(dateString) {
+        const date = new Date(dateString);
+        const options = { weekday: 'long', timeZone: 'UTC' }; // Use UTC to avoid timezone shifts affecting the day
+        return new Intl.DateTimeFormat('ar-SA', options).format(date);
+    }
+
+    function calculateWorkedHours(checkInTime, checkOutTime) {
+        if (!checkInTime || !checkOutTime) return { hours: 0, minutes: 0, seconds: 0, totalSeconds: 0 };
+
+        const start = new Date(checkInTime).getTime();
+        const end = new Date(checkOutTime).getTime();
+        let diff = Math.max(0, end - start); // Ensure non-negative difference
+
+        const totalSeconds = Math.floor(diff / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        return { hours, minutes, seconds, totalSeconds };
+    }
+
+    function formatDuration(hours, minutes, seconds) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function updateCurrentDate() {
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        currentDateEl.textContent = today.toLocaleDateString('ar-SA', options);
+    }
+
+    function getTodaysRecord() {
+        const todayStr = getTodayDateString();
+        return attendanceData.find(entry => entry.date === todayStr);
+    }
+
+    function updateOrCreateRecord(date, updates) {
+        let record = attendanceData.find(entry => entry.date === date);
+        if (record) {
+            Object.assign(record, updates, { lastUpdated: new Date().toISOString() });
+        } else {
+            const newRecord = {
+                date: date,
+                checkIn: null,
+                checkOut: null,
+                status: STATUS_WORK, // Default status for new entry
+                ...updates,
+                 lastUpdated: new Date().toISOString()
+            };
+            attendanceData.push(newRecord);
+        }
+        saveData();
+    }
+
+    function startLiveTimer() {
+        stopLiveTimer(); // Clear any existing timer
+        const record = getTodaysRecord();
+        if (record && record.checkIn && !record.checkOut && record.status === STATUS_WORK) {
+            currentTimerInterval = setInterval(() => {
+                const now = new Date();
+                const duration = calculateWorkedHours(record.checkIn, now);
+                workedHoursEl.textContent = formatDuration(duration.hours, duration.minutes, duration.seconds);
+            }, 1000);
+        } else if (record && record.checkIn && record.checkOut) {
+            // If already checked out today, show final duration
+             const duration = calculateWorkedHours(record.checkIn, record.checkOut);
+             workedHoursEl.textContent = formatDuration(duration.hours, duration.minutes, duration.seconds);
+        } else {
+             workedHoursEl.textContent = '00:00:00';
+        }
+    }
+
+    function stopLiveTimer() {
+        if (currentTimerInterval) {
+            clearInterval(currentTimerInterval);
+            currentTimerInterval = null;
+        }
+    }
+
+    // --- UI Rendering ---
+    function renderMainPanel() {
+        const todayStr = getTodayDateString();
+        const record = getTodaysRecord();
+
+        if (record) {
+            dayStatusTextEl.textContent = record.status;
+            statusDropdown.value = record.status;
+
+            checkInBtn.disabled = !!record.checkIn;
+            checkOutBtn.disabled = !record.checkIn || !!record.checkOut || record.status !== STATUS_WORK;
+
+            if (record.checkIn) {
+                checkInBtn.innerHTML = `<i class="fas fa-check mr-2"></i> تم الدخول ${formatTime(record.checkIn)}`;
+            } else {
+                 checkInBtn.innerHTML = `<i class="fas fa-sign-in-alt mr-2"></i> تسجيل الدخول`;
+            }
+
+             if (record.checkOut) {
+                 checkOutBtn.innerHTML = `<i class="fas fa-check mr-2"></i> تم الخروج ${formatTime(record.checkOut)}`;
+            } else {
+                 checkOutBtn.innerHTML = `<i class="fas fa-sign-out-alt mr-2"></i> تسجيل الخروج`;
+            }
+
+            if (record.status !== STATUS_WORK) {
+                 checkInBtn.disabled = true;
+                 checkOutBtn.disabled = true;
+                 workedHoursEl.textContent = '--:--:--';
+                 stopLiveTimer();
+            } else {
+                 startLiveTimer(); // Start or update timer
+            }
+
+        } else {
+            // No record for today
+            dayStatusTextEl.textContent = 'لم يبدأ بعد';
+            statusDropdown.value = STATUS_WORK; // Default
+            checkInBtn.disabled = false;
+            checkOutBtn.disabled = true;
+            checkInBtn.innerHTML = `<i class="fas fa-sign-in-alt mr-2"></i> تسجيل الدخول`;
+            checkOutBtn.innerHTML = `<i class="fas fa-sign-out-alt mr-2"></i> تسجيل الخروج`;
+            workedHoursEl.textContent = '00:00:00';
+            stopLiveTimer();
+        }
+    }
+
+    function renderHistory() {
+        historyTableBody.innerHTML = ''; // Clear existing rows
+        const searchTerm = historySearchInput.value.toLowerCase();
+        const filterMonth = historyMonthFilterInput.value; // YYYY-MM
+
+        const filteredData = attendanceData.filter(entry => {
+             const matchSearch = !searchTerm ||
+                 entry.date.includes(searchTerm) ||
+                 entry.status.toLowerCase().includes(searchTerm) ||
+                 getDayOfWeekArabic(entry.date).toLowerCase().includes(searchTerm);
+
+             const matchMonth = !filterMonth || entry.date.startsWith(filterMonth);
+
+             return matchSearch && matchMonth;
+        });
+
+        if (filteredData.length === 0) {
+            noHistoryMessage.style.display = 'block';
+            return;
+        }
+
+        noHistoryMessage.style.display = 'none';
+
+        filteredData.forEach(entry => {
+            const row = document.createElement('tr');
+            const duration = calculateWorkedHours(entry.checkIn, entry.checkOut);
+            const hoursFormatted = (entry.checkIn && entry.checkOut) ? formatDuration(duration.hours, duration.minutes, 0) : (entry.status === STATUS_WORK ? 'جارٍ' : '--:--'); // Show only HH:MM
+
+            row.innerHTML = `
+                <td class="font-mono">${entry.date}</td>
+                <td>${getDayOfWeekArabic(entry.date)}</td>
+                <td class="font-mono">${formatTime(entry.checkIn)}</td>
+                <td class="font-mono">${formatTime(entry.checkOut)}</td>
+                <td class="font-mono ${ (entry.checkIn && entry.checkOut) ? 'text-glow-accent' : ''}">${hoursFormatted}</td>
+                <td>${entry.status}</td>
+                <td>
+                    <button class="btn-icon" title="تعديل" onclick="openManualEntryModal('${entry.date}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-icon-delete" title="حذف" onclick="handleDeleteEntry('${entry.date}')">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            `;
+            historyTableBody.appendChild(row);
+        });
+    }
+
+    function clearHistoryFilters() {
+        historySearchInput.value = '';
+        historyMonthFilterInput.value = '';
+        renderHistory();
+    }
+
+    function applySettingsToUI() {
+        // Populate settings form
+        defaultCheckInInput.value = settings.defaultCheckIn || '';
+        defaultCheckOutInput.value = settings.defaultCheckOut || '';
+        cycleStartDayInput.value = settings.cycleStartDay || '';
+        settingSoundCheckbox.checked = settings.soundEnabled;
+        settingMotionCheckbox.checked = settings.motionEnabled;
+
+        // Apply motion setting (example: toggle animations)
+        if (settings.motionEnabled) {
+            document.body.classList.remove('disable-motion'); // You'd define .disable-motion CSS rules if needed
+        } else {
+            document.body.classList.add('disable-motion');
+        }
+        // Apply other settings as needed
+    }
+
+    // --- Event Handlers ---
+    function handleCheckIn() {
+        const now = new Date().toISOString();
+        const todayStr = getTodayDateString();
+        updateOrCreateRecord(todayStr, { checkIn: now, status: STATUS_WORK, checkOut: null }); // Ensure checkout is nullified if re-checking in
+        renderMainPanel();
+        showNotification('تم تسجيل الدخول بنجاح!', 'success');
+    }
+
+    function handleCheckOut() {
+        const now = new Date().toISOString();
+        const todayStr = getTodayDateString();
+        const record = getTodaysRecord();
+        if (record && record.checkIn) {
+             updateOrCreateRecord(todayStr, { checkOut: now });
+             stopLiveTimer(); // Stop timer explicitly on checkout
+             renderMainPanel(); // Re-render to update button states and final time
+             showNotification('تم تسجيل الخروج بنجاح!', 'success');
+        } else {
+            showNotification('خطأ: يجب تسجيل الدخول أولاً.', 'error');
+        }
+    }
+
+    function handleStatusChange(newStatus) {
+        const todayStr = getTodayDateString();
+        let updates = { status: newStatus };
+        // If changing to non-work status, potentially clear times or disable buttons
+        if (newStatus !== STATUS_WORK) {
+            updates.checkIn = getTodaysRecord()?.checkIn || null; // Keep existing check-in if any
+            updates.checkOut = getTodaysRecord()?.checkOut || null; // Keep existing check-out if any
+            stopLiveTimer();
+        }
+        updateOrCreateRecord(todayStr, updates);
+        renderMainPanel(); // Re-render to reflect status change and button states
+        showNotification(`تم تغيير حالة اليوم إلى: ${newStatus}`, 'info');
+    }
+
+    function handleSettingsSave(event) {
+        event.preventDefault();
+        settings.defaultCheckIn = defaultCheckInInput.value;
+        settings.defaultCheckOut = defaultCheckOutInput.value;
+        settings.cycleStartDay = parseInt(cycleStartDayInput.value, 10) || null;
+        settings.soundEnabled = settingSoundCheckbox.checked;
+        settings.motionEnabled = settingMotionCheckbox.checked;
+        saveSettings();
+        applySettingsToUI(); // Re-apply settings visually
+        showNotification('تم حفظ الإعدادات بنجاح!', 'success');
+    }
+
+    function handleManualEntrySubmit(event) {
+        event.preventDefault();
+        const date = manualDateInput.value;
+        const checkInTime = manualCheckInInput.value;
+        const checkOutTime = manualCheckOutInput.value;
+        const status = manualStatusInput.value;
+        const editDate = manualEntryEditDateInput.value; // Check if we are editing
+
+        if (!date) {
+            showNotification('خطأ: يرجى تحديد التاريخ.', 'error');
+            return;
+        }
+
+        // Combine date with time for proper Date object creation if time is provided
+        const checkInISO = checkInTime ? new Date(`${date}T${checkInTime}`).toISOString() : null;
+        const checkOutISO = checkOutTime ? new Date(`${date}T${checkOutTime}`).toISOString() : null;
+
+        // If editing, remove the old entry first if the date itself changed
+        if (editDate && editDate !== date) {
+             attendanceData = attendanceData.filter(entry => entry.date !== editDate);
+        }
+
+        updateOrCreateRecord(date, {
+            checkIn: checkInISO,
+            checkOut: checkOutISO,
+            status: status
+        });
+
+        closeModal('manualEntryModal');
+        renderHistory(); // Refresh history view
+        renderMainPanel(); // Refresh main panel if today's date was edited
+        showNotification(`تم ${editDate ? 'تعديل' : 'إضافة'} سجل يوم ${date} بنجاح!`, 'success');
+    }
+
+    function handleDeleteEntry(date) {
+        if (confirm(`هل أنت متأكد من حذف سجل يوم ${date}؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+            attendanceData = attendanceData.filter(entry => entry.date !== date);
+            saveData();
+            renderHistory();
+            renderMainPanel(); // In case today's record was deleted
+            showNotification(`تم حذف سجل يوم ${date}.`, 'info');
+        }
+    }
+
+    // --- Modal Handling ---
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+             // Clear specific modal content if needed
+            if (modalId === 'manualEntryModal') {
+                manualEntryForm.reset();
+                manualEntryEditDateInput.value = ''; // Clear edit flag
+            }
+            if (modalId === 'qrDisplayModal') {
+                 qrCodeContainer.innerHTML = ''; // Clear previous QR code
+            }
+             if (modalId === 'qrScannerModal') {
+                 stopQRScan(); // Ensure scanner stops
+                 scanResultEl.textContent = '';
+            }
+        }
+    }
+
+    function closeModalOnClickOutside(event, modalId) {
+        if (event.target.id === modalId) {
+             if (modalId === 'qrScannerModal') {
+                 stopQRScanAndClose();
+             } else {
+                 closeModal(modalId);
+             }
+        }
+    }
+
+    function openManualEntryModal(dateToEdit = null) {
+        manualEntryForm.reset(); // Clear previous data
+        manualEntryEditDateInput.value = ''; // Reset edit flag
+
+        if (dateToEdit) {
+            const record = attendanceData.find(entry => entry.date === dateToEdit);
+            if (record) {
+                manualEntryEditDateInput.value = dateToEdit; // Set flag
+                manualDateInput.value = record.date;
+                manualCheckInInput.value = record.checkIn ? formatTime(record.checkIn) : '';
+                manualCheckOutInput.value = record.checkOut ? formatTime(record.checkOut) : '';
+                manualStatusInput.value = record.status;
+                 // Disable date editing for now to simplify logic, or handle date change correctly in submit
+                // manualDateInput.disabled = true;
+            } else {
+                 console.error("Record not found for editing:", dateToEdit);
+                 showNotification("خطأ: لم يتم العثور على السجل للتعديل.", "error");
+                 return;
+            }
+        } else {
+            // Set default date to today for new entries via modal
+            manualDateInput.value = getTodayDateString();
+            // manualDateInput.disabled = false;
+        }
+        openModal('manualEntryModal');
+    }
+
+
+    // --- Export & Share ---
+
+    function exportExcel() {
+        if (attendanceData.length === 0) {
+            showNotification("لا توجد بيانات لتصديرها.", "warning");
+            return;
+        }
+
+        // Prepare data for SheetJS
+        const dataToExport = attendanceData.map(entry => {
+            const duration = calculateWorkedHours(entry.checkIn, entry.checkOut);
+            return {
+                'التاريخ': entry.date,
+                'اليوم': getDayOfWeekArabic(entry.date),
+                'وقت الدخول': entry.checkIn ? formatTime(entry.checkIn) : '-',
+                'وقت الخروج': entry.checkOut ? formatTime(entry.checkOut) : '-',
+                'ساعات العمل (HH:MM)': (entry.checkIn && entry.checkOut) ? formatDuration(duration.hours, duration.minutes, 0).substring(0, 5) : '-', // Only HH:MM
+                'الحالة': entry.status
+            };
+        });
+
+        // Create worksheet
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+
+        // Basic Styling (SheetJS Community version has limited styling)
+        // Set column widths (approximate)
+        ws['!cols'] = [
+            { wch: 12 }, // Date
+            { wch: 15 }, // Day
+            { wch: 15 }, // Check In
+            { wch: 15 }, // Check Out
+            { wch: 20 }, // Hours
+            { wch: 15 }  // Status
+        ];
+
+        // Enable RTL for the sheet
+        if (!ws['!props']) ws['!props'] = {};
+        ws['!props'].RTL = true;
+
+        // Create workbook and add the worksheet
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'سجل الحضور');
+
+        // Generate and download the Excel file
+        const fileName = `attendance_log_${getTodayDateString()}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        showNotification("تم إنشاء ملف Excel بنجاح!", "success");
+    }
+
+    function generateAndShowQR() {
+        qrCodeContainer.innerHTML = ''; // Clear previous
+        if (attendanceData.length === 0) {
+            showNotification("لا توجد بيانات لإنشاء رمز QR.", "warning");
+            openModal('qrDisplayModal'); // Open modal even if empty to show message
+            qrCodeContainer.innerHTML = '<p class="text-text-darker">لا توجد بيانات للمشاركة.</p>';
+            return;
+        }
+
+        const dataString = JSON.stringify(attendanceData);
+        // Check size, QR has limits. If too large, maybe warn or export only recent data?
+        // For simplicity, we'll try to generate it anyway.
+        if (dataString.length > 2500) { // Approx limit for reliable scanning
+             showNotification("تحذير: حجم البيانات كبير جداً، قد يواجه رمز QR صعوبة في المسح.", "warning");
+        }
+
+        new QRCode(qrCodeContainer, {
+            text: dataString,
+            width: 256,
+            height: 256,
+            colorDark : "#0d0f1a", // Dark parts color
+            colorLight : "#ffffff", // Light parts color (background)
+            correctLevel : QRCode.CorrectLevel.L // Low correction level for more data capacity
+        });
+        openModal('qrDisplayModal');
+    }
+
+    function startQRScan() {
+        scanResultEl.textContent = ''; // Clear previous result
+        openModal('qrScannerModal');
+
+        // Ensure the container is visible before initializing
+        setTimeout(() => {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-reader");
+            } else {
+                // If already initialized, ensure it's stopped before starting again
+                 html5QrCode.stop().catch(err => console.log("Ignoring stop error if already stopped:", err));
+            }
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            // Start scanning
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+                .catch(err => {
+                    console.error(`Unable to start scanning, error code = ${err}`);
+                    scanResultEl.textContent = `خطأ في تشغيل الكاميرا: ${err}`;
+                    showNotification("خطأ في تشغيل الكاميرا.", "error");
+                    // Maybe close modal after a delay if camera fails permanently?
+                });
+        }, 100); // Small delay to ensure modal transition is complete
+    }
+
+    function stopQRScan() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop()
+                .then(ignore => { console.log("QR Code scanning stopped."); })
+                .catch(err => console.warn("QR Code stopping failed.", err));
+        }
+    }
+
+     function stopQRScanAndClose() {
+        stopQRScan();
+        closeModal('qrScannerModal');
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        // Handle on success condition.
+        console.log(`Scan result: ${decodedText}`, decodedResult);
+        stopQRScan(); // Stop scanning immediately after success
+
+        scanResultEl.textContent = "تم المسح بنجاح! جاري معالجة البيانات...";
+        scanResultEl.classList.remove('text-red-500');
+        scanResultEl.classList.add('text-glow-accent');
+
+        try {
+            const incomingData = JSON.parse(decodedText);
+            if (!Array.isArray(incomingData)) {
+                throw new Error("Invalid data format: Expected an array.");
+            }
+
+            // Validate structure of first item (basic check)
+            if (incomingData.length > 0 && (!incomingData[0].date || !incomingData[0].status)) {
+                throw new Error("Invalid data format: Missing required fields.");
+            }
+
+            mergeData(incomingData);
+            // Close modal after a short delay to show success message
+            setTimeout(() => {
+                closeModal('qrScannerModal');
+                 showNotification("تم استيراد ودمج البيانات بنجاح!", "success");
+            }, 1500);
+
+        } catch (error) {
+            console.error("Failed to parse or merge QR data:", error);
+            scanResultEl.textContent = `خطأ في معالجة البيانات: ${error.message}. حاول مرة أخرى.`;
+            scanResultEl.classList.remove('text-glow-accent');
+            scanResultEl.classList.add('text-red-500'); // Use a red color for errors
+             showNotification("فشل استيراد البيانات من QR.", "error");
+            // Keep modal open so user can see the error or try again? Or close after delay?
+            // For now, keep it open. User can manually cancel.
+            // Optionally restart scan automatically? Not recommended without user action.
+        }
+    }
+
+    function onScanFailure(error) {
+        // Optional: Handle scan failure (e.g., QR code not found continuously)
+        // console.warn(`Code scan error = ${error}`);
+        // Can add UI feedback here if needed, but often it's best to let it keep trying
+    }
+
+    function mergeData(incomingData) {
+        let addedCount = 0;
+        let updatedCount = 0;
+        const currentDataMap = new Map(attendanceData.map(entry => [entry.date, entry]));
+
+        incomingData.forEach(incomingEntry => {
+            // Basic validation of incoming entry
+            if (!incomingEntry || typeof incomingEntry.date !== 'string' || typeof incomingEntry.status !== 'string') {
+                console.warn("Skipping invalid incoming entry:", incomingEntry);
+                return; // Skip malformed entries
+            }
+
+            const existingEntry = currentDataMap.get(incomingEntry.date);
+
+            if (existingEntry) {
+                // Simple merge: overwrite if incoming has a lastUpdated timestamp and it's newer
+                // Or just overwrite if no timestamp exists (basic strategy)
+                // More sophisticated: compare fields, prompt user? (Too complex for now)
+                const incomingLastUpdated = incomingEntry.lastUpdated ? new Date(incomingEntry.lastUpdated) : null;
+                const existingLastUpdated = existingEntry.lastUpdated ? new Date(existingEntry.lastUpdated) : null;
+
+                // Overwrite if incoming is newer, or if existing has no timestamp
+                if (!existingLastUpdated || (incomingLastUpdated && incomingLastUpdated > existingLastUpdated)) {
+                    Object.assign(existingEntry, incomingEntry);
+                    updatedCount++;
+                }
+                // Otherwise, keep the existing (presumably newer or equally new) entry
+            } else {
+                // Add new entry
+                 // Ensure it has a lastUpdated timestamp if missing
+                 if (!incomingEntry.lastUpdated) {
+                     incomingEntry.lastUpdated = new Date().toISOString();
+                 }
+                attendanceData.push(incomingEntry);
+                addedCount++;
+            }
+        });
+
+        saveData(); // Save the merged data
+        loadData(); // Reload to re-sort and refresh state
+        renderHistory(); // Update history view
+        renderMainPanel(); // Update main panel if today's data was affected
+
+        console.log(`Data merged: ${addedCount} added, ${updatedCount} updated.`);
+        showNotification(`تم الدمج: ${addedCount} سجلات جديدة, ${updatedCount} سجلات محدثة.`, 'info');
+    }
+
+
+    // --- UI Helpers ---
+    function switchTab(tabName) {
+        // Remove active class from all tabs and sections
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
+
+        // Add active class to the selected tab and section
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+        document.getElementById(`section-${tabName}`).classList.add('active');
+
+        activeTab = tabName;
+
+        // Refresh content if needed when switching to a tab
+        if (tabName === 'history') {
+            renderHistory();
+        } else if (tabName === 'settings') {
+            applySettingsToUI(); // Ensure settings form is up-to-date
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        const notificationId = `notif-${Date.now()}`;
+        const notification = document.createElement('div');
+        notification.id = notificationId;
+        notification.className = `p-3 rounded-lg shadow-lg text-sm font-semibold animate-bounce`; // Add bounce for entry
+
+        let bgColor, textColor, iconClass;
+
+        switch (type) {
+            case 'success':
+                bgColor = 'bg-green-500 bg-opacity-80 border border-green-400';
+                textColor = 'text-white';
+                iconClass = 'fas fa-check-circle';
+                break;
+            case 'error':
+                bgColor = 'bg-red-600 bg-opacity-80 border border-red-500';
+                textColor = 'text-white';
+                iconClass = 'fas fa-exclamation-triangle';
+                break;
+            case 'warning':
+                bgColor = 'bg-yellow-500 bg-opacity-80 border border-yellow-400';
+                textColor = 'text-gray-900';
+                iconClass = 'fas fa-exclamation-circle';
+                break;
+            case 'info':
+            default:
+                bgColor = 'bg-blue-500 bg-opacity-80 border border-blue-400';
+                textColor = 'text-white';
+                iconClass = 'fas fa-info-circle';
+                break;
+        }
+
+        notification.classList.add(...bgColor.split(' '), textColor);
+        notification.innerHTML = `<i class="${iconClass} mr-2"></i> ${message}`;
+
+        notificationArea.appendChild(notification);
+
+        // Auto-remove after a few seconds
+        setTimeout(() => {
+            const el = document.getElementById(notificationId);
+            if (el) {
+                 // Optional: Add fade-out animation
+                el.style.transition = 'opacity 0.5s ease-out';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            }
+        }, 4000); // Keep notification for 4 seconds
+    }
+
+
+    // --- Particles Background ---
+    function initParticles() {
+        particlesJS('particles-js', {
+            "particles": {
+                "number": {
+                    "value": 80, // Reduced for less clutter
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": ["#00f2ea", "#ff00ff", "#70ff00"] // Neon colors
+                },
+                "shape": {
+                    "type": "circle", // circle, edge, triangle, polygon, star, image
+                    "stroke": {
+                        "width": 0,
+                        "color": "#000000"
+                    },
+                },
+                "opacity": {
+                    "value": 0.4, // Slightly more subtle
+                    "random": true,
+                    "anim": {
+                        "enable": true,
+                        "speed": 0.5,
+                        "opacity_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "size": {
+                    "value": 3,
+                    "random": true,
+                    "anim": {
+                        "enable": false,
+                        "speed": 40,
+                        "size_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "line_linked": {
+                    "enable": true,
+                    "distance": 120, // Slightly shorter lines
+                    "color": "#ffffff", // Make lines less prominent, maybe use border-glow color?
+                    "opacity": 0.2, // Much more subtle lines
+                    "width": 1
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 1.5, // Slower, more ambient movement
+                    "direction": "none",
+                    "random": true,
+                    "straight": false,
+                    "out_mode": "out",
+                    "bounce": false,
+                    "attract": {
+                        "enable": false,
+                        "rotateX": 600,
+                        "rotateY": 1200
+                    }
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "grab" // grab, bubble, repulse
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push" // push, remove, bubble
+                    },
+                    "resize": true
+                },
+                "modes": {
+                    "grab": {
+                        "distance": 140,
+                        "line_linked": {
+                            "opacity": 0.5 // Slightly more visible interaction line
+                        }
+                    },
+                    "bubble": {
+                        "distance": 400,
+                        "size": 40,
+                        "duration": 2,
+                        "opacity": 8,
+                        "speed": 3
+                    },
+                    "repulse": {
+                        "distance": 200,
+                        "duration": 0.4
+                    },
+                    "push": {
+                        "particles_nb": 4
+                    },
+                    "remove": {
+                        "particles_nb": 2
+                    }
+                }
+            },
+            "retina_detect": true
+        });
+    }
+
+</script>
+
+<!-- Minimal PWA Manifest (manifest.json) - Place this content in a file named manifest.json in the same directory -->
+<!--
+{
+  "name": "Smart Attendance System",
+  "short_name": "Attendance",
+  "description": "Futuristic attendance tracking application.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d0f1a",
+  "theme_color": "#0d0f1a",
+  "icons": [
+    {
+      "src": "icon-192.png", // Create a 192x192 icon
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png", // Create a 512x512 icon
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+-->
+
+<!-- Minimal PWA Service Worker (sw.js) - Place this content in a file named sw.js in the same directory -->
+<!--
+const CACHE_NAME = 'smart-attendance-cache-v1';
+const urlsToCache = [
+  '.', // Cache the main HTML file
+  // Add paths to essential assets if they were external (e.g., CSS, specific JS libs not on CDN)
+  // CDN assets are usually handled well by browser caching, but can be added if needed.
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // Cache hit - return response
+        if (response) {
+          return response;
+        }
+        // Not in cache - fetch from network
+        return fetch(event.request);
+      }
+    )
+  );
+});
+
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+-->
+
+</body>
+</html>
